@@ -1,3 +1,4 @@
+# This code has been copied and modified from (https://github.com/DominicBreuker/self-driving-car-experiments#getting-data) 
 import os
 import rosbag
 import cv2
