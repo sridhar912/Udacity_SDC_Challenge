@@ -22,5 +22,3 @@ The datasets for this challenge can be downloaded [here](https://github.com/udac
 
 
 
-Note:
-The code for data extraction from rosbag has been copied and modified from this [github](https://github.com/DominicBreuker/self-driving-car-experiments#getting-data) repo
