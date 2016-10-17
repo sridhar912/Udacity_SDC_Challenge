@@ -134,41 +134,46 @@ def calc_angle(angle_values, speed_values):
                 return True, angle_value
             else:
                 return False, angle_value
-
-# first dataset contains 15212 images.. Here validation set is not created.
-tfRecord = cTfWriter(tf_dir,'train',15212,10)
+    else: #if speed is zero send dummy values
+        return False, 0
 
 with rosbag.Bag(rosbag_file, "r") as bag:
+    expected_im_count = bag.get_message_count(right_camera_topic)
+    # first dataset contains 15212 images.. Here validation set is not created.
+    tfRecord = cTfWriter(tf_dir, 'train', expected_im_count, 16)
     for topic, msg, t in bag.read_messages(topics=topics):
         if topic == steering_report_topic:
             angle_values.append(msg.steering_wheel_angle)
             speed_values.append(msg.speed)
         elif topic in camera_topics:
             if topic == left_camera_topic:
-                record, angle_value = calc_angle(angle_values,speed_values)
-                if record and topic in tf_topics:
-                    store_msg(tfRecord,angle_value,msg)
+                if topic in tf_topics:
+                    record, angle_value = calc_angle(angle_values, speed_values)
+                    if record:
+                        store_msg(tfRecord,angle_value,msg)
             elif topic == center_camera_topic:
-                record, angle_value = calc_angle(angle_values, speed_values)
-                if record and topic in tf_topics:
-                    store_msg(tfRecord, angle_value, msg)
+                if topic in tf_topics:
+                    record, angle_value = calc_angle(angle_values, speed_values)
+                    if record:
+                        store_msg(tfRecord, angle_value, msg)
+                    # reset the list to empty. Cant think of a better way to do it
+                    angle_values[:] = []
+                    speed_values[:] = []
+                    images[:] = []
+                    im_count = im_count + 1
+                    if im_count % 1000 == 0:
+                        print 'Done processing images :{}'.format(im_count)
             elif topic == right_camera_topic:
-                record, angle_value = calc_angle(angle_values, speed_values)
-                if record and topic in tf_topics:
-                    store_msg(tfRecord, angle_value, msg)
-                # reset the list to empty. Cant think of a better way to do it
-                angle_values[:] = []
-                speed_values[:] = []
-                images[:] = []
-                im_count = im_count + 1
-                if im_count % 1000 == 0:
-                    print 'Done processing images :{}'.format(im_count)
+                if topic in tf_topics:
+                    record, angle_value = calc_angle(angle_values, speed_values)
+                    if record:
+                        store_msg(tfRecord, angle_value, msg)
 
 #Check the code by extracting the information..
 #This is a simple check to display the values
 check_angle = True
 if check_angle:
-    filename = '%s/%s-%.5d-of-%.5d' % (tf_dir,'train', 0 , 10)  # supply sample values
+    filename = '%s/%s-%.5d-of-%.5d' % (tf_dir,'train', 0 , 16)  # supply sample values
     for serialized_example in tf.python_io.tf_record_iterator(filename):
         example = tf.train.Example()
         example.ParseFromString(serialized_example)
@@ -208,7 +213,7 @@ if check_image:
 
 
     # returns symbolic label and image
-    filename = '%s/%s-%.5d-of-%.5d' % (tf_dir, 'train', 0, 10)
+    filename = '%s/%s-%.5d-of-%.5d' % (tf_dir, 'train', 0, 16)
     steering_angle, image = read_and_decode_single_example(filename)
     image = tf.image.decode_jpeg(image)
 
@@ -231,4 +236,4 @@ if check_image:
     plt.subplot(1, 2, 2)
     plt.imshow(image_val_2)
     plt.show()
-    print "Image checking done.."
+    print "Image checking done..
