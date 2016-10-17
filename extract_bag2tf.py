@@ -173,15 +173,15 @@ with rosbag.Bag(rosbag_file, "r") as bag:
 #This is a simple check to display the values
 check_angle = True
 if check_angle:
-    filename = '%s/%s-%.5d-of-%.5d' % (tf_dir,'train', 0 , 16)  # supply sample values
-    for serialized_example in tf.python_io.tf_record_iterator(filename):
-        example = tf.train.Example()
-        example.ParseFromString(serialized_example)
+    for filename in glob.iglob(tf_dir + '/*'):
+        for serialized_example in tf.python_io.tf_record_iterator(filename):
+            example = tf.train.Example()
+            example.ParseFromString(serialized_example)
 
-        # traverse the Example format to get data
-        image = example.features.feature['image/encoded'].bytes_list.value
-        steering_angle = example.features.feature['image/steering_angle'].float_list.value[0]
-        print 'The steering angle {}'.format(steering_angle)
+            # traverse the Example format to get data
+            image = example.features.feature['image/encoded'].bytes_list.value
+            steering_angle = example.features.feature['image/steering_angle'].float_list.value[0]
+            print 'The steering angle {}'.format(steering_angle)
 
 check_image = True
 if check_image:
@@ -212,28 +212,29 @@ if check_image:
         return steering_angle, image
 
 
-    # returns symbolic label and image
-    filename = '%s/%s-%.5d-of-%.5d' % (tf_dir, 'train', 0, 16)
-    steering_angle, image = read_and_decode_single_example(filename)
-    image = tf.image.decode_jpeg(image)
+    # Check the first two images of all the binary format
+    for filename in glob.iglob(tf_dir + '/*'):
+        steering_angle, image = read_and_decode_single_example(filename)
+        image = tf.image.decode_jpeg(image)
 
-    sess = tf.Session()
+        sess = tf.Session()
 
-    # Required. See below for explanation
-    init = tf.initialize_all_variables()
-    sess.run(init)
-    tf.train.start_queue_runners(sess=sess)
+        # Required. See below for explanation
+        init = tf.initialize_all_variables()
+        sess.run(init)
+        tf.train.start_queue_runners(sess=sess)
 
-    # grab examples back.
-    # first example from file
-    steering_angle_1, image_val_1 = sess.run([steering_angle, image])
-    # second example from file
-    steering_angle_2, image_val_2 = sess.run([steering_angle, image])
+        # grab examples back.
+        # first example from file
+        steering_angle_1, image_val_1 = sess.run([steering_angle, image])
+        # second example from file
+        steering_angle_2, image_val_2 = sess.run([steering_angle, image])
 
-    plt.figure(1)
-    plt.subplot(1, 2, 1)
-    plt.imshow(image_val_1)
-    plt.subplot(1, 2, 2)
-    plt.imshow(image_val_2)
-    plt.show()
-    print "Image checking done..
+        plt.figure(1)
+        plt.subplot(1, 2, 1)
+        plt.imshow(image_val_1)
+        plt.subplot(1, 2, 2)
+        plt.imshow(image_val_2)
+	plt.title(filename)
+        plt.show()
+        print "Image checking done.."
