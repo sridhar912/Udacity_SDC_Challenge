@@ -11,18 +11,18 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 import predict_steering
-from predict_steering import inference_vgg
+from predict_steering import inference_nvidia
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('train_dir', '../dataset',
+tf.app.flags.DEFINE_string('train_dir', '/home/sridhar/code/Challenge/Code_tfRecord/model_deg0/',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_integer('max_steps', 100000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('checkpoint_dir','../dataset',
+tf.app.flags.DEFINE_string('checkpoint_dir','/home/sridhar/code/Challenge/Code_tfRecord/model_deg0/',
                            """Directory where to read model checkpoints.""")
 
 
@@ -31,16 +31,17 @@ def train():
   with tf.Graph().as_default():
     global_step = tf.Variable(0, trainable=False)
 
-    # Get images and labels 
-    images, steering_angle = predict_steering.distorted_inputs()
+    # Get images and labels
+    images, steering_labels, steering_angles = predict_steering.distorted_inputs()
 
     # Build a Graph that computes the logits predictions from the
     # inference model.
     #logits = predict_steering.inference(images)
-    logits = predict_steering.inference_nvidia(images)
+    #logits, angles = predict_steering.inference_nvidia(images,is_training=True)
+    logits, angles = predict_steering.inference_nvidia(images, is_training=True)
 
     # Calculate loss.
-    loss = predict_steering.loss(logits, steering_angle)
+    loss = predict_steering.loss(logits, steering_labels, angles, steering_angles)
 
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
@@ -78,11 +79,20 @@ def train():
     summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
 
     for step in xrange(FLAGS.max_steps):
+      #steering_labels1, steering_angles1,  logits_value, angles_value = sess.run([steering_labels, steering_angles, logits, angles])
+      #mse_value, ce_value = sess.run([mse, ce])
+      #s = np.subtract(angles_value, steering_angles1)
+      #a = np.square(s)
+      #m = np.mean(a)
+      #loss_mse = sess.run([tf.reduce_mean(tf.square(tf.sub(angles, steering_angles)))])
+
+      #label_v, logits_v, angles_v, _ = sess.run([steering_labels, logits, angles, train_op])
+
       start_time = time.time()
-      _, loss_value = sess.run([train_op, loss])
+      _, loss_value= sess.run([train_op, loss])
       duration = time.time() - start_time
 
-      assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+      #assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
       if step % 10 == 0:
         num_examples_per_step = FLAGS.batch_size_flag

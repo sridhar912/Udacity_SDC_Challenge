@@ -12,6 +12,16 @@ import tensorflow as tf
 
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 101267
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 3812
+NUM_CLASS_LABELS = 100
+STEERING_ANGLE_RANGE = 17 / NUM_CLASS_LABELS
+
+def _generate_label(steering_angle):
+    if tf.less(steering_angle, 0) is not None:
+        label = tf.floor((NUM_CLASS_LABELS /2) + ((steering_angle / STEERING_ANGLE_RANGE)))
+    else:
+        label = tf.ceil((NUM_CLASS_LABELS / 2) - ((steering_angle / STEERING_ANGLE_RANGE)))
+
+    return label
 
 
 def read_and_decode_single_example(serialized_example):
@@ -36,11 +46,11 @@ def read_and_decode_single_example(serialized_example):
   # now return the converted data
   en_image = features['image/encoded']
   result.steering_angle = features['image/steering_angle']
+  result.label = _generate_label(result.steering_angle)
   result.format = features['image/format']
   result.height = tf.cast(features['image/height'],dtype=tf.int32)
   result.width = tf.cast(features['image/width'],dtype=tf.int32)
   result.channels = tf.cast(features['image/channels'],dtype=tf.int32)
-  image_bytes = result.height * result.width * result.channels
   if result.format == 'png':
       image = tf.image.decode_png(en_image)
   else:
@@ -137,34 +147,35 @@ def distorted_inputs(data_dir, batch_size):
       reader = tf.TFRecordReader()
       _, example_serialized = reader.read(filename_queue)
 
-  images_and_angles = []
+  images_and_lables_and_angles = []
   num_preprocess_threads = 16
   for thread_id in range(num_preprocess_threads):
       # Parse a serialized Example proto to extract the image and metadata.
       read_input = read_and_decode_single_example(example_serialized)
       float_image = tf.image.convert_image_dtype(read_input.image, tf.float32)
+      float_image = float_image / 255
       image_resize = tf.image.resize_images(float_image, [120, 160])
-      image_crop = tf.image.crop_to_bounding_box(image_resize, 60, 0, 60, 160)
-      mean_image = tf.image.per_image_whitening(image_crop)
+      #image_crop = tf.image.crop_to_bounding_box(image_resize, 60, 0, 60, 160)
+      mean_image = tf.image.per_image_whitening(image_resize)
       #image_hsv = tf.image.rgb_to_hsv(image_crop)
       if not thread_id:
           tf.image_summary('original', tf.expand_dims(float_image,0))
           tf.image_summary('resize', tf.expand_dims(image_resize, 0))
-          tf.image_summary('crop', tf.expand_dims(image_crop, 0))
+          #tf.image_summary('crop', tf.expand_dims(image_crop, 0))
           #tf.image_summary('hsv', tf.expand_dims(image_resize, 0))
-      images_and_angles.append([mean_image, read_input.steering_angle])
+      images_and_lables_and_angles.append([mean_image, read_input.label, read_input.steering_angle])
 
-  images_batch, angles_batch = tf.train.batch_join(
-      images_and_angles,
+  images_batch, labels_batch, angles_batch = tf.train.batch_join(
+      images_and_lables_and_angles,
       batch_size=batch_size,
       capacity=2 * num_preprocess_threads * batch_size)
 
   tf.image_summary('images', images_batch)
 
-  return images_batch, tf.reshape(angles_batch, [batch_size])
+  return images_batch, tf.reshape(labels_batch, [batch_size]), tf.reshape(angles_batch, [batch_size])
 
 def inputs(eval_data, data_dir, batch_size):
-  """Construct input for  evaluation using the Reader ops.
+  """Construct input for evaluation using the Reader ops.
   Args:
     eval_data: bool, indicating if one should use the train or eval data set.
     data_dir: Path to the data directory.
@@ -210,21 +221,21 @@ def inputs(eval_data, data_dir, batch_size):
       reader = tf.TFRecordReader()
       _, example_serialized = reader.read(filename_queue)
 
-  images_and_angles = []
+  images_and_lables_and_angles = []
   num_preprocess_threads = 16
   for thread_id in range(num_preprocess_threads):
       # Parse a serialized Example proto to extract the image and metadata.
       read_input = read_and_decode_single_example(example_serialized)
       float_image = tf.image.convert_image_dtype(read_input.image, tf.float32)
       image_resize = tf.image.resize_images(float_image, [120, 160])
-      image_crop = tf.image.crop_to_bounding_box(image_resize, 70, 0, 50, 160)
-      mean_image = tf.image.per_image_whitening(image_crop)
+      #image_crop = tf.image.crop_to_bounding_box(image_resize, 70, 0, 50, 160)
+      mean_image = tf.image.per_image_whitening(image_resize)
       #image_hsv = tf.image.rgb_to_hsv(image_crop)
-      images_and_angles.append([mean_image, read_input.steering_angle])
+      images_and_lables_and_angles.append([mean_image,read_input.label ,read_input.steering_angle])
 
-  images_batch, angles_batch = tf.train.batch_join(
-      images_and_angles,
+  images_batch, labels_batch, angles_batch = tf.train.batch_join(
+      images_and_lables_and_angles,
       batch_size=batch_size,
       capacity=2 * num_preprocess_threads * batch_size)
 
-  return images_batch, tf.reshape(angles_batch, [batch_size])
+  return images_batch, tf.reshape(labels_batch, [batch_size]), tf.reshape(angles_batch, [batch_size])

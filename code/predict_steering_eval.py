@@ -13,11 +13,11 @@ import predict_steering
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('eval_dir', '../dataset/eval',
+tf.app.flags.DEFINE_string('eval_dir', '/home/sridhar/code/Challenge/Code_tfRecord/model_deg5/eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'train_eval',
                            """Either 'test' or 'train_eval'.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', '../dataset',
+tf.app.flags.DEFINE_string('checkpoint_dir', '/home/sridhar/code/Challenge/Code_tfRecord/model_deg5/',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
@@ -84,7 +84,7 @@ def eval_once(saver, summary_writer, mse_op, logits_op, steering_angles_op, summ
 def evaluate():
   """Eval for a number of steps."""
   with tf.Graph().as_default() as g:
-    # Get images and labels.
+    # Get images and labels
     eval_data = FLAGS.eval_data == 'test'
     images, steering_angles = predict_steering.inputs(eval_data=eval_data)
 
